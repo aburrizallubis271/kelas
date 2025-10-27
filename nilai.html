@@ -115,7 +115,7 @@
                     <label for="student-selector" class="block text-sm font-medium text-gray-700 mb-1">Nama Siswa:</label>
                     <!-- OPSI AKAN DIBUAT SECARA DINAMIS OLEH JAVASCRIPT -->
                     <select id="student-selector" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50">
-                        <option value="" disabled>-- Memuat Daftar Siswa --</option>
+                        <option value="" disabled selected>-- Memuat Daftar Siswa --</option>
                     </select>
                 </div>
 
@@ -179,7 +179,7 @@
 
     </main>
     
-    <!-- MODAL DETAIL NILAI HARIAN (Input yang lebih jelas) -->
+    <!-- MODAL DETAIL NILAI HARIAN -->
     <div id="detailed-input-modal" class="modal-overlay">
         <div class="bg-white rounded-xl shadow-2xl p-6 w-11/12 max-w-xl transform transition-all scale-100">
             <h4 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
@@ -196,6 +196,19 @@
             <div class="mt-6 flex justify-end space-x-3">
                 <button id="close-modal-button" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg font-semibold hover:bg-gray-400 transition duration-300">Tutup</button>
                 <button id="save-daily-scores-button" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition duration-300">Simpan & Hitung Ulang NH</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL PESAN ERROR (PENGGANTI ALERT) -->
+    <div id="error-modal" class="modal-overlay">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-11/12 max-w-sm transform transition-all">
+            <h4 id="error-modal-title" class="text-xl font-bold text-red-600 mb-4 border-b pb-2 flex items-center">
+                <i data-lucide="x-circle" class="w-6 h-6 mr-2 text-red-500"></i> Error
+            </h4>
+            <p id="error-modal-body" class="text-gray-700 mb-6">Pesan error.</p>
+            <div class="flex justify-end">
+                <button id="close-error-modal-button" class="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition duration-300">Oke</button>
             </div>
         </div>
     </div>
@@ -421,6 +434,112 @@
             return Math.round(sum / validScores.length); 
         }
         
+        // Fungsi untuk menampilkan modal error (pengganti alert)
+        function showErrorModal(title, message) {
+            document.getElementById('error-modal-title').innerHTML = `<i data-lucide="x-circle" class="w-6 h-6 mr-2 text-red-500"></i> ${title}`;
+            document.getElementById('error-modal-body').textContent = message;
+            document.getElementById('error-modal').style.display = 'flex';
+            lucide.createIcons();
+        }
+
+        // FUNGSI UTAMA PDF BARU (Menggunakan kode dari user yang sudah diperbaiki)
+        function exportToPDF() {
+            const studentId = document.getElementById('student-selector').value;
+            const periodId = document.getElementById('period-selector').value;
+            const studentData = STUDENT_DATA.find(s => s.id === studentId);
+            const periodText = document.getElementById('period-selector').options[
+                document.getElementById('period-selector').selectedIndex
+            ].text;
+
+            if (!studentData || studentId === "") { 
+                showErrorModal("Pilih Siswa Diperlukan", "Mohon pilih nama siswa dari daftar terlebih dahulu sebelum mengunduh laporan PDF.");
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Judul dan identitas sekolah
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(14);
+            doc.text("LAPORAN NILAI AKADEMIK SISWA", 105, 15, { align: "center" });
+
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "normal");
+            doc.text("SDN 3 NGANTRU", 105, 22, { align: "center" });
+            // KKM 70 ditambahkan di sini
+            doc.text(`Tahun Pelajaran 2024/2025 - KKM: ${KKM_SEKOLAH}`, 105, 28, { align: "center" });
+
+            doc.line(20, 30, 190, 30);
+
+            // Informasi siswa
+            doc.setFontSize(11);
+            doc.text(`Nama Siswa : ${studentData.name}`, 20, 40);
+            doc.text(`Kelas : V (Lima)`, 20, 46);
+            doc.text(`Periode : ${periodText}`, 20, 52);
+
+            // Siapkan data tabel
+            const gradesToExport = studentData.grades[periodId] ? studentData.grades[periodId].slice(0, NUM_SUBJECTS) : [];
+            
+            const tableData = gradesToExport.map((g, i) => {
+                const { na } = calculateNA(g.nh, g.nts, g.nas, KKM_SEKOLAH);
+                return [
+                    SUBJECT_LIST[i],
+                    g.nh,
+                    g.nts,
+                    g.nas,
+                    na
+                ];
+            });
+
+            const averageNA = Math.round(
+                tableData.reduce((sum, row) => sum + row[4], 0) / (tableData.length || 1)
+            );
+
+            // Buat tabel nilai
+            doc.autoTable({
+                startY: 60,
+                head: [["Mata Pelajaran", "NH", "NTS", "NAS", "NA"]],
+                body: tableData,
+                theme: "grid",
+                styles: { halign: "center", valign: "middle", fontSize: 10 },
+                headStyles: { fillColor: [41, 128, 185], textColor: 255 },
+                columnStyles: {
+                    0: { halign: "left", cellWidth: 70 },
+                },
+                margin: { left: 20, right: 20 },
+            });
+
+            // Tambahkan rata-rata nilai
+            let finalY = doc.autoTable.previous.finalY + 10;
+            doc.setFont("helvetica", "bold");
+            doc.text(`Rata-Rata Nilai Akademik: ${averageNA}`, 20, finalY);
+            finalY += 8;
+
+            // Tambahkan catatan siswa
+            doc.setFont("helvetica", "normal");
+            const note = studentData.notes[periodId];
+            doc.text("Catatan Guru:", 20, finalY);
+            doc.setFont("helvetica", "italic");
+            const splitNote = doc.splitTextToSize(note, 170);
+            doc.text(splitNote, 20, finalY + 6);
+
+            // Bagian tanda tangan
+            finalY += splitNote.length * 6 + 20;
+            doc.setFont("helvetica", "normal");
+            // Menggunakan Ngantru sesuai lokasi sekolah
+            doc.text(`Ngantru, ${new Date().toLocaleDateString('id-ID')}`, 140, finalY); 
+            doc.text(GURU_KELAS.JABATAN, 140, finalY + 8);
+            
+            doc.setFont("helvetica", "bold");
+            doc.text(GURU_KELAS.NAMA, 140, finalY + 30);
+            doc.setFont("helvetica", "normal");
+            doc.text(`NIP. ${GURU_KELAS.NIP}`, 140, finalY + 36);
+
+            // Simpan PDF
+            doc.save(`Laporan_Nilai_${studentData.name.replace(/\s/g, '_')}_${periodId}.pdf`);
+        }
+
         // Fungsi utama untuk merender nilai berdasarkan ID siswa dan periode
         function renderGrades(studentId) {
             currentStudentId = studentId;
@@ -560,126 +679,6 @@
             renderGrades(currentStudentId);
         }
 
-        // FUNGSI UTAMA PDF BARU: Menghilangkan garis titik-titik dan mengupdate KKM
-        function exportToPDF() {
-            const studentId = document.getElementById('student-selector').value;
-            const periodId = document.getElementById('period-selector').value;
-            const data = STUDENT_DATA.find(s => s.id === studentId);
-            const periodText = document.getElementById('period-selector').options[document.getElementById('period-selector').selectedIndex].text;
-
-            if (!data) return;
-
-            // Inisialisasi jsPDF
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            
-            const studentName = data.name;
-            const gradesToExport = data.grades[periodId] ? data.grades[periodId].slice(0, NUM_SUBJECTS) : [];
-            const studentNote = data.notes[periodId] || 'Data nilai belum tersedia.';
-            
-            let totalNA = 0;
-            
-            // Siapkan Data untuk jsPDF-autotable
-            const tableHeaders = [
-                ['Mata Pelajaran', 'Rata-Rata Nilai Harian (NH)', 'Nilai Tengah Semester (NTS)', 'Nilai Akhir Semester (NAS)', 'Nilai Rapor (NA)']
-            ];
-            
-            const tableBody = gradesToExport.map(grade => {
-                const subject = SUBJECT_LIST[gradesToExport.indexOf(grade)];
-                const nh = grade.nh;
-                const nts = grade.nts;
-                const nas = grade.nas;
-                const { na } = calculateNA(nh, nts, nas, KKM_SEKOLAH);
-                totalNA += na;
-
-                return [subject, nh, nts, nas, na];
-            });
-            
-            const average = gradesToExport.length > 0 ? Math.round(totalNA / gradesToExport.length) : 0;
-            
-            // --- Konten PDF ---
-
-            // 1. Judul Dokumen
-            doc.setFontSize(16);
-            doc.setFont('helvetica', 'bold');
-            doc.text("LAPORAN NILAI AKADEMIK SISWA KELAS V", 14, 20);
-
-            // 2. Detail Sekolah, Siswa, dan Periode
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            doc.text(`Sekolah: SDN 3 Ngantru`, 14, 30);
-            doc.text(`Nama Siswa: ${studentName}`, 14, 35);
-            doc.text(`Periode: ${periodText}`, 14, 40);
-            // KKM DIPERBARUI DI SINI
-            doc.text(`KKM Sekolah: ${KKM_SEKOLAH}`, 14, 45); 
-
-            // 3. Tabel Nilai
-            doc.autoTable({
-                startY: 50,
-                head: tableHeaders,
-                body: tableBody,
-                theme: 'striped',
-                headStyles: { fillColor: [30, 144, 255] }, // Warna biru
-                styles: { fontSize: 10, cellPadding: 2, overflow: 'linebreak' },
-                columnStyles: {
-                    0: { cellWidth: 50 },
-                    1: { halign: 'center' },
-                    2: { halign: 'center' },
-                    3: { halign: 'center' },
-                    4: { halign: 'center', fontStyle: 'bold' }
-                }
-            });
-
-            // 4. Catatan Siswa
-            const afterTableY = doc.autoTable.previous.finalY; // Ambil posisi akhir tabel
-            
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'bold');
-            doc.text("Rata-Rata Nilai Akademik:", 110, afterTableY + 10);
-            doc.setFontSize(14);
-            doc.setTextColor(128, 0, 128); // Ungu
-            doc.text(String(average), 180, afterTableY + 10, null, null, 'right');
-
-            doc.setTextColor(0, 0, 0); // Hitam
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            doc.text("Catatan Khusus:", 14, afterTableY + 20);
-            
-            let currentY = afterTableY + 25;
-
-            // Tambahkan catatan dengan autotable untuk wrap text jika panjang
-            doc.autoTable({
-                startY: currentY,
-                body: [[studentNote]],
-                theme: 'plain',
-                styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
-                margin: { left: 14, right: 14 },
-                columnStyles: { 0: { cellWidth: 178 } }
-            });
-            
-            currentY = doc.autoTable.previous.finalY + 15; // Pindah ke bawah kotak catatan
-
-            // 5. TANDA TANGAN GURU
-            // Asumsi lokasi tanda tangan di sisi kanan
-            const ttdX = 140; 
-            const ttdY = currentY;
-
-            doc.setFontSize(10);
-            doc.setFont('helvetica', 'normal');
-            doc.text(`Ngantru, ${new Date().toLocaleDateString('id-ID')}`, ttdX, ttdY);
-            doc.text(GURU_KELAS.JABATAN, ttdX, ttdY + 5);
-
-            // Nama Guru dan NIP (tanpa garis titik-titik)
-            doc.setFont('helvetica', 'bold');
-            doc.text(GURU_KELAS.NAMA, ttdX, ttdY + 25); 
-            doc.setFont('helvetica', 'normal');
-            doc.text(`NIP. ${GURU_KELAS.NIP}`, ttdX, ttdY + 30); 
-            
-
-            // 6. Download File
-            const filename = `Laporan_Nilai_${studentName.replace(/\s/g, '_')}_${periodId}.pdf`;
-            doc.save(filename);
-        }
         
         // Fungsi untuk mengisi dropdown siswa secara dinamis
         function populateStudentSelector() {
@@ -693,9 +692,8 @@
                 selector.appendChild(option);
             });
             
-            // Pilih siswa pertama sebagai default
+            // Pilih siswa pertama sebagai default, tetapi jangan ubah value selector menjadi siswa1
             if (STUDENT_DATA.length > 0) {
-                selector.value = STUDENT_DATA[0].id;
                 renderGrades(STUDENT_DATA[0].id);
             } else {
                 // Tampilkan pesan jika tidak ada data siswa
@@ -719,7 +717,8 @@
             const periodSelector = document.getElementById('period-selector');
             // GANTI: Menggunakan ID tombol PDF
             const downloadButton = document.getElementById('download-pdf-button'); 
-            const modal = document.getElementById('detailed-input-modal');
+            const inputModal = document.getElementById('detailed-input-modal');
+            const errorModal = document.getElementById('error-modal');
             
             // Event listener for student change
             studentSelector.addEventListener('change', (event) => {
@@ -738,18 +737,30 @@
             // GANTI: Event listener untuk tombol Unduh PDF
             downloadButton.addEventListener('click', exportToPDF);
 
-            // Event listener untuk tombol Simpan di modal
+            // Event listener untuk tombol Simpan di modal input
             document.getElementById('save-daily-scores-button').addEventListener('click', saveDailyScores);
             
-            // Event listener untuk tombol Tutup di modal
+            // Event listener untuk tombol Tutup di modal input
             document.getElementById('close-modal-button').addEventListener('click', () => {
-                modal.style.display = 'none';
+                inputModal.style.display = 'none';
             });
 
-            // Event listener untuk menutup modal saat mengklik overlay
-            modal.addEventListener('click', (e) => {
+            // Event listener untuk menutup modal input saat mengklik overlay
+            inputModal.addEventListener('click', (e) => {
                 if (e.target.classList.contains('modal-overlay')) {
-                    modal.style.display = 'none';
+                    inputModal.style.display = 'none';
+                }
+            });
+            
+            // Event listener untuk tombol Oke di modal error
+            document.getElementById('close-error-modal-button').addEventListener('click', () => {
+                errorModal.style.display = 'none';
+            });
+            
+            // Event listener untuk menutup modal error saat mengklik overlay
+            errorModal.addEventListener('click', (e) => {
+                if (e.target.classList.contains('modal-overlay')) {
+                    errorModal.style.display = 'none';
                 }
             });
 
