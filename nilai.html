@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nilai Siswa Kelas V - SDN 3 Ngantru</title>
+    <!-- Memuat Tailwind CSS dan Ikon Lucide -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Library untuk generate PDF (jsPDF dan Autotable Plugin) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        /* Menggunakan font Inter secara default dan latar belakang konsisten */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+        }
+        /* Style untuk kartu bayangan */
+        .card {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
+        .card:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+        }
+        /* Style khusus untuk tabel nilai */
+        .grade-table th {
+            @apply bg-blue-100 text-blue-800 uppercase text-sm font-semibold p-3 border-b border-blue-200;
+        }
+        .grade-table td {
+            @apply p-3 border-b border-gray-100;
+        }
+        /* Style untuk baris yang dapat diklik */
+        .grade-row:hover {
+            cursor: pointer;
+            background-color: #eef2ff; /* bg-indigo-50 */
+        }
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- HEADER: Konsisten dengan halaman sebelumnya -->
+    <header class="bg-blue-600 shadow-lg text-white p-4">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <!-- Gunakan placeholder image -->
+                <img src="https://placehold.co/48x48/0d9488/ffffff?text=SDN" alt="Logo SDN 3 Ngantru" class="h-10 w-10 md:h-12 md:w-12 object-contain rounded-full">
+                <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight">SDN 3 Ngantru</h1>
+            </div>
+            <!-- Menu Navigasi Utama -->
+            <nav class="hidden md:flex space-x-6 text-lg font-medium items-center">
+                <!-- TAUTAN BERANDA -->
+                <a href="halaman1.html" class="hover:text-yellow-300 transition duration-300">Beranda</a>
+                <!-- TAUTAN PROFIL -->
+                <a href="profil.html" class="hover:text-yellow-300 transition duration-300">Profil</a>
+                <!-- TAUTAN NILAI (Aktif) -->
+                <a href="Nilai.html" class="hover:text-yellow-300 transition duration-300 border-b-2 border-yellow-300">Nilai</a>
+                <!-- TAUTAN EDUKASI -->
+                <a href="edukasi.html" class="hover:text-yellow-300 transition duration-300">Edukasi</a>
+                <!-- Tombol Log Out -->
+                <a href="index.html" class="bg-red-500 text-white px-3 py-1.5 rounded-full text-sm font-bold hover:bg-red-600 transition duration-300 flex items-center space-x-1 ml-4">
+                    <i data-lucide="log-out" class="w-4 h-4"></i> <span>Log Out</span>
+                </a>
+            </nav>
+            <!-- Tombol untuk menu mobile -->
+            <button id="menu-button" class="md:hidden text-white focus:outline-none">
+                <i data-lucide="menu" class="w-7 h-7"></i>
+            </button>
+        </div>
+        <!-- Menu Mobile Dropdown -->
+        <nav id="mobile-menu" class="hidden md:hidden mt-3 space-y-2 px-2 pb-3 pt-2 bg-blue-700/80 rounded-lg">
+            <a href="halaman1.html" class="block py-2 px-3 rounded-md text-base font-medium hover:bg-blue-500">Beranda</a>
+            <a href="profil.html" class="block py-2 px-3 rounded-md text-base font-medium hover:bg-blue-500">Profil</a>
+            <a href="Nilai.html" class="block py-2 px-3 rounded-md text-base font-medium bg-blue-500">Nilai</a>
+            <a href="edukasi.html" class="block py-2 px-3 rounded-md text-base font-medium hover:bg-blue-500">Edukasi</a>
+            <a href="index.html" class="block py-2 px-3 rounded-md text-base font-medium bg-red-500 hover:bg-red-600 flex items-center space-x-2">
+                <i data-lucide="log-out" class="w-5 h-5"></i> <span>Log Out</span>
+            </a>
+        </nav>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow max-w-6xl mx-auto p-4 md:p-8">
+
+        <h2 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-6 border-b-4 border-blue-500 pb-2 flex items-center">
+            <i data-lucide="graduation-cap" class="w-8 h-8 mr-3 text-blue-500"></i> Data Nilai Akademik Kelas V
+        </h2>
+
+        <!-- Filter dan Pilihan Siswa -->
+        <section class="mb-8 p-6 bg-white rounded-xl shadow-lg border-l-4 border-yellow-500">
+            <h3 class="text-xl font-bold text-gray-700 mb-4 flex items-center">
+                <i data-lucide="filter" class="w-5 h-5 mr-2 text-yellow-500"></i> Pilih Data Siswa
+            </h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                
+                <!-- Pilihan Siswa -->
+                <div class="col-span-1">
+                    <label for="student-selector" class="block text-sm font-medium text-gray-700 mb-1">Nama Siswa:</label>
+                    <!-- OPSI AKAN DIBUAT SECARA DINAMIS OLEH JAVASCRIPT -->
+                    <select id="student-selector" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50">
+                        <option value="" disabled>-- Memuat Daftar Siswa --</option>
+                    </select>
+                </div>
+
+                <!-- Periode Nilai (Diperbarui untuk Genap 2024/2025) -->
+                <div class="col-span-1">
+                    <label for="period-selector" class="block text-sm font-medium text-gray-700 mb-1">Periode:</label>
+                    <select id="period-selector" class="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-gray-50">
+                        <option value="ganjil2425" selected>Semester Ganjil 2024/2025</option>
+                        <option value="genap2425">Semester Genap 2024/2025</option>
+                    </select>
+                </div>
+
+                <!-- Tombol Aksi - Unduh PDF (Diperbarui) -->
+                <div class="col-span-1 flex items-end">
+                    <button id="download-pdf-button" class="w-full bg-red-600 text-white p-2.5 rounded-lg font-semibold hover:bg-red-700 transition duration-300 flex items-center justify-center">
+                        <i data-lucide="file-text" class="w-5 h-5 mr-2"></i> Unduh PDF Laporan
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tampilan Nilai Siswa yang Dipilih -->
+        <section id="grade-display" class="mb-12">
+            <h3 id="student-name-header" class="text-2xl font-bold text-blue-800 mb-4 flex items-center border-b pb-2">
+                <i data-lucide="user-check" class="w-6 h-6 mr-2 text-blue-500"></i> Rangkuman Nilai Siswa
+            </h3>
+            
+            <div class="overflow-x-auto bg-white rounded-xl shadow-lg card">
+                <table class="min-w-full divide-y divide-gray-200 grade-table">
+                    <thead>
+                        <tr>
+                            <th class="text-left rounded-tl-xl">Mata Pelajaran</th>
+                            <!-- LABEL DIPERBARUI -->
+                            <th class="text-center">Rata-Rata Nilai Harian (NH)</th>
+                            <th class="text-center">Nilai Tengah Semester (NTS)</th>
+                            <th class="text-center">Nilai Akhir Semester (NAS)</th>
+                            <th class="text-center rounded-tr-xl">Nilai Rapor (NA)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="grades-table-body" class="divide-y divide-gray-50 text-gray-700">
+                        <!-- Konten diisi oleh JavaScript -->
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="4" class="text-right font-bold text-gray-800 pt-4">Rata-Rata Nilai Akademik:</td>
+                            <td id="average-grade" class="text-center font-extrabold text-2xl text-purple-600 pt-4 pb-2 border-t-2 border-purple-500">0</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div id="notes-card" class="mt-6 p-4 bg-gray-100 border-l-4 border-gray-500 text-gray-800 rounded-lg">
+                <p class="font-bold flex items-center">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 mr-2"></i> Catatan Khusus
+                </p>
+                <p id="student-notes" class="text-sm mt-1">
+                    Pilih siswa dari daftar di atas untuk melihat data nilai dan catatan khusus.
+                </p>
+            </div>
+        </section>
+
+    </main>
+    
+    <!-- MODAL DETAIL NILAI HARIAN (Input yang lebih jelas) -->
+    <div id="detailed-input-modal" class="modal-overlay">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-11/12 max-w-xl transform transition-all scale-100">
+            <h4 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2 flex items-center">
+                <i data-lucide="edit" class="w-6 h-6 mr-2 text-blue-500"></i> <span id="modal-title">Detail Nilai Harian</span>
+            </h4>
+            
+            <!-- DESKRIPSI DIPERBARUI -->
+            <p class="text-sm text-gray-600 mb-4">Masukkan hingga 10 Nilai Tugas/Ulangan Harian. Rata-Rata Nilai Harian (NH) adalah rata-rata dari semua nilai yang terisi.</p>
+            
+            <div id="daily-scores-container" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 max-h-96 overflow-y-auto p-2">
+                <!-- Input fields akan dimasukkan di sini oleh JS -->
+            </div>
+
+            <div class="mt-6 flex justify-end space-x-3">
+                <button id="close-modal-button" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg font-semibold hover:bg-gray-400 transition duration-300">Tutup</button>
+                <button id="save-daily-scores-button" class="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition duration-300">Simpan & Hitung Ulang NH</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER: Konsisten dengan halaman sebelumnya -->
+    <footer class="bg-gray-800 text-white p-6 mt-12">
+        <div class="max-w-6xl mx-auto text-center md:flex md:justify-between md:items-center">
+            <p>&copy; <span id="current-year"></span> SDN 3 Ngantru. Semua Hak Dilindungi.</p>
+            <div class="flex justify-center space-x-4 mt-3 md:mt-0">
+                <a href="#" class="hover:text-blue-400 transition duration-300"><i data-lucide="facebook" class="w-5 h-5"></i></a>
+                <a href="#" class="hover:text-pink-400 transition duration-300"><i data-lucide="instagram" class="w-5 h-5"></i></a>
+                <a href="#" class="hover:text-green-400 transition duration-300"><i data-lucide="whatsapp" class="w-5 h-5"></i></a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Skrip untuk Ikon Lucide dan Interaktivitas -->
+    <script>
+        // Kriteria Ketuntasan Minimal (KKM) digunakan untuk penentuan warna.
+        const KKM_SEKOLAH = 70; // NILAI KKM SUDAH DIGANTI DARI 80 MENJADI 70
+
+        // ====================================================================
+        // DATA GURU UNTUK TANDA TANGAN (MOHON DIGANTI)
+        // ====================================================================
+        const GURU_KELAS = {
+            NAMA: "Aburrizal Hamdani Lubis, S.Pd", 
+            NIP: "198012312005011001",           // GANTI DENGAN NIP ANDA YANG SEBENARNYA
+            JABATAN: "Guru Kelas V"
+        };
+        // ====================================================================
+
+        // Variabel Global untuk state modal
+        let currentStudentId = null;
+        let currentSubjectIndex = null;
+        
+        // 1. DAFTAR MATA PELAJARAN (Sama seperti sebelumnya)
+        const SUBJECT_LIST = [
+            "PJOK", // Pendidikan Jasmani, Olahraga, dan Kesehatan
+            "B. INDONESIA", 
+            "PANCASILA", 
+            "MATEMATIKA", 
+            "IPAS", // Ilmu Pengetahuan Alam dan Sosial (Gabungan IPA/IPS)
+            "AGAMA", 
+            "B. INGGRIS",
+            "B. JAWA", 
+            "SBDP" // Seni Budaya dan Prakarya
+        ];
+
+        const NUM_SUBJECTS = SUBJECT_LIST.length;
+        
+        // 2. Fungsi untuk menghitung Nilai Akhir (NA) dan menentukan warna
+        function calculateNA(nh, nts, nas, kkm) {
+            // Formula Nilai Rapor: (NH + NTS + NAS) / 3
+            const na = Math.round((nh + nts + nas) / 3);
+            let colorClass = 'text-green-600';
+            if (na < kkm) {
+                colorClass = 'text-red-600';
+            } else if (na >= kkm && na < kkm + 5) {
+                colorClass = 'text-orange-600';
+            }
+            return { na, colorClass };
+        }
+
+        // Fungsi untuk membuat catatan siswa berdasarkan nilai
+        function generateStudentNote(studentName, grades, kkm) {
+            let totalNA = 0;
+            let subjectsBelowKKM = [];
+
+            // Hanya pertimbangkan mata pelajaran yang ada di SUBJECT_LIST
+            for (let index = 0; index < grades.length && index < SUBJECT_LIST.length; index++) {
+                const grade = grades[index];
+                const nh = grade.nh;
+                const nts = grade.nts;
+                const nas = grade.nas;
+                const na = Math.round((nh + nts + nas) / 3);
+                
+                if (na < kkm) {
+                    subjectsBelowKKM.push(SUBJECT_LIST[index]);
+                }
+                totalNA += na;
+            }
+
+            const numSubjects = Math.min(grades.length, SUBJECT_LIST.length);
+            const averageNA = numSubjects > 0 ? Math.round(totalNA / numSubjects) : 0;
+
+            if (averageNA === 0) {
+                 return `Data nilai belum tersedia untuk periode ini.`;
+            } else if (subjectsBelowKKM.length > 0) {
+                return `Kinerja akademik perlu ditingkatkan. Terdapat ${subjectsBelowKKM.length} mata pelajaran di bawah KKM ${kkm} (Nilai Rapor): ${subjectsBelowKKM.join(', ')}. Rata-rata Nilai Akademik: ${averageNA}.`;
+            } else {
+                return `Siswa memiliki kinerja akademik yang sangat baik dengan nilai rata-rata ${averageNA}. Semua mata pelajaran melampaui KKM ${kkm}.`;
+            }
+        }
+        
+        // Fungsi baru untuk membuat array nilai 0 untuk semua mata pelajaran (Genap)
+        function generateZeroGrades() {
+            const zeroGrade = { nh: 0, nts: 0, nas: 0 };
+            return Array(NUM_SUBJECTS).fill(zeroGrade).map((_, index) => {
+                // Return a deep copy of zeroGrade for each subject
+                return { ...zeroGrade }; 
+            });
+        }
+
+        // ====================================================================
+        // 3. PEMBARUAN DATA SISWA (Restrukturisasi untuk Multi-Semester)
+        // ====================================================================
+        
+        // Daftar 25 Nama Siswa Baru
+        const INITIAL_STUDENT_NAMES = [
+            "ALBIANO BINTANG AIRLANGGA", "ANANDA MUTIARA VANESSA", "ARJUNA DWI PUTRA AIRLANGGA", 
+            "BAHTIAR PUTRA PRATAMA", "DAVIDSON BIMA SAPUTRA", "DIKA PUTRA HIRATA", 
+            "HELLEN NUGRAHEVY IMANNIAR", "IBRAHIM PUTRA AFIFUDIN", "ICHSAN EVRA IBRAHIM", 
+            "IVAN DIMAS", "JAVA AIRLANGGA", "KAILA PUTRI ERNANDA", 
+            "MUHAMMAD AFRINDO BAGUS SETYAWAN", "MUHAMMAD ALFARO YAVIANDO", "MUHAMMAD AZAM AL KHARIM", 
+            "MUHAMMAD WIDAD FEBRIANSAH", "NADHIRA ADZKIA ZHARUFA", "RAFFAEL RANGGA RADITYA PUTRA", 
+            "RIFKY NADIM UKAIL AFKAR", "RONALD KRISTIAN", "SAKURA PUTRI HASHIRAMA", 
+            "SEPTYAN RAFA RADITYA SURATANGKA", "SISKA NUR RAMADANIA", "UZDA NADIFA", 
+            "ARYA DWI HIDAYANTO"
+        ];
+        
+        // Nilai Harian PJOK untuk 25 Siswa Baru (Ganjil 24/25)
+        const newPjokScores = [
+            60, 60, 95, 90, 60, 60, 60, 90, 70, 60, // Siswa 1-10
+            60, 60, 70, 60, 60, 60, 90, 60, 60, // Siswa 11-19
+            100, 90, 85, 95, 80, 75 // Siswa 20-25 
+        ];
+
+        // Pola NTS/NAS lama dan NH untuk mata pelajaran non-PJOK (Ganjil 24/25)
+        const BASE_GRADES_PATTERN = [
+            // B. INDONESIA (Index 1)
+            { nts: 60, nas: 60, nh: 60 },  
+            // PANCASILA (Index 2)
+            { nts: 100, nas: 100, nh: 100 }, 
+            // MATEMATIKA (Index 3)
+            { nts: 100, nas: 100, nh: 100 }, 
+            // IPAS (Index 4)
+            { nts: 100, nas: 100, nh: 100 }, 
+            // AGAMA (Index 5)
+            { nts: 60, nas: 60, nh: 60 },  
+            // B. INGGRIS (Index 6)
+            { nts: 100, nas: 100, nh: 100 }, 
+            // B. JAWA (Index 7)
+            { nts: 100, nas: 100, nh: 100 }, 
+            // SBDP (Index 8)
+            { nts: 95, nas: 95, nh: 95 }    
+        ];
+
+        // Fungsi untuk menghitung nilai semester Ganjil 24/25
+        function calculateGanjilGrades(i) {
+            const grades = [];
+            // Mengambil nilai PJOK. Jika indeks melebihi data, default 100
+            const pjokNH = newPjokScores[i] !== undefined ? newPjokScores[i] : 100;
+            
+            // PJOK grade (Index 0)
+            grades.push({ nh: pjokNH, nts: 100, nas: 100 }); 
+
+            // Tambahkan 8 mata pelajaran lainnya (Index 1-8)
+            BASE_GRADES_PATTERN.forEach(grade => {
+                grades.push({ nh: grade.nh, nts: grade.nts, nas: grade.nas }); 
+            });
+            return grades;
+        }
+
+        const STUDENT_DATA = [];
+
+        for (let i = 0; i < INITIAL_STUDENT_NAMES.length; i++) {
+            const studentName = INITIAL_STUDENT_NAMES[i];
+            
+            // 1. Data Semester Ganjil 2024/2025
+            const ganjilGrades = calculateGanjilGrades(i);
+            const ganjilNote = generateStudentNote(studentName, ganjilGrades, KKM_SEKOLAH);
+
+            // 2. Data Semester Genap 2024/2025 (Semua nilai 0)
+            const genapGrades = generateZeroGrades();
+            const genapNote = generateStudentNote(studentName, genapGrades, KKM_SEKOLAH);
+            
+            // 3. Masukkan objek siswa final dengan multi-semester ke array
+            STUDENT_DATA.push({
+                id: `siswa${i+1}`,
+                name: studentName,
+                notes: {
+                    "ganjil2425": ganjilNote,
+                    "genap2425": genapNote
+                },
+                grades: {
+                    "ganjil2425": ganjilGrades,
+                    "genap2425": genapGrades
+                }
+            });
+        }
+
+
+        /**
+         * Mengambil 10 nilai harian untuk subjek tertentu dari periode yang dipilih.
+         */
+        function getDailyScores(studentId, subjectIndex) {
+            const periodId = document.getElementById('period-selector').value;
+            const data = STUDENT_DATA.find(s => s.id === studentId);
+            
+            if (!data) return Array(10).fill(0);
+            
+            // Ambil array nilai untuk periode yang dipilih
+            const gradesForPeriod = data.grades[periodId]; 
+            
+            // Cek apakah data tersedia dan indeks subjek valid
+            if (!gradesForPeriod || subjectIndex < 0 || subjectIndex >= gradesForPeriod.length) return Array(10).fill(0);
+            
+            const nhAverage = gradesForPeriod[subjectIndex].nh;
+            
+            // Mengembalikan array 10 nilai yang sama untuk simulasi input
+            return Array(10).fill(nhAverage); 
+        }
+
+        /**
+         * Menghitung Nilai Harian (NH) baru berdasarkan 10 nilai detail.
+         */
+        function calculateNewNH(dailyScores) {
+            // Filter hanya nilai > 0
+            const validScores = dailyScores.filter(score => score > 0); 
+            if (validScores.length === 0) return 0;
+            const sum = validScores.reduce((a, b) => a + b, 0);
+            // NH baru adalah rata-rata dari nilai-nilai yang terisi
+            return Math.round(sum / validScores.length); 
+        }
+        
+        // Fungsi utama untuk merender nilai berdasarkan ID siswa dan periode
+        function renderGrades(studentId) {
+            currentStudentId = studentId;
+            const periodId = document.getElementById('period-selector').value; // Ambil periode yang dipilih
+
+            const data = STUDENT_DATA.find(s => s.id === studentId);
+            if (!data) return;
+
+            const tableBody = document.getElementById('grades-table-body');
+            const studentNameHeader = document.getElementById('student-name-header');
+            const averageGradeElement = document.getElementById('average-grade');
+            const studentNotesElement = document.getElementById('student-notes');
+            const notesCard = document.getElementById('notes-card');
+            
+            tableBody.innerHTML = '';
+            studentNameHeader.innerHTML = `<i data-lucide="user-check" class="w-6 h-6 mr-2 text-blue-500"></i> Rangkuman Nilai ${data.name}`;
+            
+            let totalNA = 0;
+            
+            // Ambil data nilai dan catatan untuk periode yang dipilih
+            const gradesToRender = data.grades[periodId] ? data.grades[periodId].slice(0, NUM_SUBJECTS) : [];
+            const studentNote = data.notes[periodId] || 'Data nilai belum tersedia untuk periode ini.';
+
+            gradesToRender.forEach((grade, index) => {
+                const subject = SUBJECT_LIST[index];
+                const nh = grade.nh;
+                const nts = grade.nts;
+                const nas = grade.nas;
+                const { na, colorClass } = calculateNA(nh, nts, nas, KKM_SEKOLAH);
+                
+                totalNA += na;
+
+                const row = `
+                    <tr class="grade-row hover:bg-indigo-50 transition duration-150" 
+                        onclick="showDetailedInput('${studentId}', ${index})">
+                        <td class="font-medium flex items-center space-x-2 text-blue-700">
+                            <i data-lucide="chevrons-right" class="w-4 h-4 text-blue-400"></i>
+                            <span>${subject}</span>
+                        </td>
+                        <td class="text-center font-semibold text-blue-600 cursor-pointer hover:underline">${nh}</td>
+                        <td class="text-center">${nts}</td>
+                        <td class="text-center">${nas}</td>
+                        <td class="text-center font-extrabold ${colorClass}">${na}</td>
+                    </tr>
+                `;
+                tableBody.insertAdjacentHTML('beforeend', row);
+            });
+
+            // Hitung rata-rata hanya dari mata pelajaran yang valid
+            const average = gradesToRender.length > 0 ? Math.round(totalNA / gradesToRender.length) : 0;
+            averageGradeElement.textContent = average;
+            
+            // Update Catatan Khusus
+            studentNotesElement.textContent = studentNote;
+            
+            // Menyesuaikan warna kartu catatan
+            notesCard.classList.remove('bg-green-100', 'border-green-500', 'text-green-800', 'bg-red-100', 'border-red-500', 'text-red-800', 'bg-gray-100', 'border-gray-500', 'text-gray-800');
+            
+            if (studentNote.includes("perlu ditingkatkan") || studentNote.includes("di bawah KKM")) {
+                notesCard.classList.add('bg-red-100', 'border-red-500', 'text-red-800');
+            } else if (studentNote.includes("sangat baik") || studentNote.includes("melampaui KKM")) {
+                notesCard.classList.add('bg-green-100', 'border-green-500', 'text-green-800');
+            } else {
+                // Untuk "Data nilai belum tersedia"
+                notesCard.classList.add('bg-gray-100', 'border-gray-500', 'text-gray-800');
+            }
+            
+            lucide.createIcons();
+        }
+
+        // Fungsi untuk menampilkan modal input detail NH
+        function showDetailedInput(studentId, subjectIndex) {
+            currentStudentId = studentId;
+            currentSubjectIndex = subjectIndex;
+            
+            const modal = document.getElementById('detailed-input-modal');
+            const titleElement = document.getElementById('modal-title');
+            const container = document.getElementById('daily-scores-container');
+            const subjectName = SUBJECT_LIST[subjectIndex];
+            
+            titleElement.textContent = `Nilai Harian (${subjectName})`;
+            container.innerHTML = ''; // Bersihkan konten lama
+            
+            const dailyScores = getDailyScores(studentId, subjectIndex);
+            
+            for (let i = 0; i < 10; i++) {
+                const score = dailyScores[i] || 0; // Gunakan 0 jika tidak ada nilai
+                const inputGroup = `
+                    <div>
+                        <label for="nh-score-${i+1}" class="block text-xs font-medium text-gray-700 mb-1">NH-${i+1} (Maks 100)</label>
+                        <input type="number" id="nh-score-${i+1}" value="${score}" min="0" max="100" 
+                            class="w-full p-2 border border-gray-300 rounded-lg text-center text-sm font-semibold focus:ring-blue-500 focus:border-blue-500 transition duration-150" 
+                            oninput="if(this.value > 100) this.value = 100; if(this.value < 0) this.value = 0;" />
+                    </div>
+                `;
+                container.insertAdjacentHTML('beforeend', inputGroup);
+            }
+
+            modal.style.display = 'flex';
+            lucide.createIcons();
+        }
+        
+        // Fungsi untuk menyimpan dan menghitung ulang NH
+        function saveDailyScores() {
+            if (!currentStudentId || currentSubjectIndex === null) return;
+
+            const newDailyScores = [];
+            for (let i = 0; i < 10; i++) {
+                const input = document.getElementById(`nh-score-${i+1}`);
+                // Pastikan nilai adalah angka valid
+                const score = parseInt(input.value) || 0; 
+                newDailyScores.push(score);
+            }
+            
+            const newNH = calculateNewNH(newDailyScores);
+            
+            // Tentukan periode yang sedang aktif
+            const periodId = document.getElementById('period-selector').value;
+            
+            // TEMPORARY: Update data di array lokal (Hanya untuk simulasi)
+            const studentData = STUDENT_DATA.find(s => s.id === currentStudentId);
+            if (studentData) {
+                // Ambil grades untuk periode yang dipilih
+                const gradesForPeriod = studentData.grades[periodId];
+                
+                // Update Nilai Harian (NH) dengan nilai rata-rata baru
+                gradesForPeriod[currentSubjectIndex].nh = newNH; 
+                
+                // Hitung ulang catatan siswa setelah perubahan NH
+                studentData.notes[periodId] = generateStudentNote(studentData.name, gradesForPeriod, KKM_SEKOLAH);
+            }
+
+            // Tutup modal
+            document.getElementById('detailed-input-modal').style.display = 'none';
+
+            // Render ulang tabel untuk menampilkan NH yang baru dihitung
+            renderGrades(currentStudentId);
+        }
+
+        // FUNGSI UTAMA PDF BARU: Menghilangkan garis titik-titik dan mengupdate KKM
+        function exportToPDF() {
+            const studentId = document.getElementById('student-selector').value;
+            const periodId = document.getElementById('period-selector').value;
+            const data = STUDENT_DATA.find(s => s.id === studentId);
+            const periodText = document.getElementById('period-selector').options[document.getElementById('period-selector').selectedIndex].text;
+
+            if (!data) return;
+
+            // Inisialisasi jsPDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const studentName = data.name;
+            const gradesToExport = data.grades[periodId] ? data.grades[periodId].slice(0, NUM_SUBJECTS) : [];
+            const studentNote = data.notes[periodId] || 'Data nilai belum tersedia.';
+            
+            let totalNA = 0;
+            
+            // Siapkan Data untuk jsPDF-autotable
+            const tableHeaders = [
+                ['Mata Pelajaran', 'Rata-Rata Nilai Harian (NH)', 'Nilai Tengah Semester (NTS)', 'Nilai Akhir Semester (NAS)', 'Nilai Rapor (NA)']
+            ];
+            
+            const tableBody = gradesToExport.map(grade => {
+                const subject = SUBJECT_LIST[gradesToExport.indexOf(grade)];
+                const nh = grade.nh;
+                const nts = grade.nts;
+                const nas = grade.nas;
+                const { na } = calculateNA(nh, nts, nas, KKM_SEKOLAH);
+                totalNA += na;
+
+                return [subject, nh, nts, nas, na];
+            });
+            
+            const average = gradesToExport.length > 0 ? Math.round(totalNA / gradesToExport.length) : 0;
+            
+            // --- Konten PDF ---
+
+            // 1. Judul Dokumen
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.text("LAPORAN NILAI AKADEMIK SISWA KELAS V", 14, 20);
+
+            // 2. Detail Sekolah, Siswa, dan Periode
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Sekolah: SDN 3 Ngantru`, 14, 30);
+            doc.text(`Nama Siswa: ${studentName}`, 14, 35);
+            doc.text(`Periode: ${periodText}`, 14, 40);
+            // KKM DIPERBARUI DI SINI
+            doc.text(`KKM Sekolah: ${KKM_SEKOLAH}`, 14, 45); 
+
+            // 3. Tabel Nilai
+            doc.autoTable({
+                startY: 50,
+                head: tableHeaders,
+                body: tableBody,
+                theme: 'striped',
+                headStyles: { fillColor: [30, 144, 255] }, // Warna biru
+                styles: { fontSize: 10, cellPadding: 2, overflow: 'linebreak' },
+                columnStyles: {
+                    0: { cellWidth: 50 },
+                    1: { halign: 'center' },
+                    2: { halign: 'center' },
+                    3: { halign: 'center' },
+                    4: { halign: 'center', fontStyle: 'bold' }
+                }
+            });
+
+            // 4. Catatan Siswa
+            const afterTableY = doc.autoTable.previous.finalY; // Ambil posisi akhir tabel
+            
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.text("Rata-Rata Nilai Akademik:", 110, afterTableY + 10);
+            doc.setFontSize(14);
+            doc.setTextColor(128, 0, 128); // Ungu
+            doc.text(String(average), 180, afterTableY + 10, null, null, 'right');
+
+            doc.setTextColor(0, 0, 0); // Hitam
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text("Catatan Khusus:", 14, afterTableY + 20);
+            
+            let currentY = afterTableY + 25;
+
+            // Tambahkan catatan dengan autotable untuk wrap text jika panjang
+            doc.autoTable({
+                startY: currentY,
+                body: [[studentNote]],
+                theme: 'plain',
+                styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak' },
+                margin: { left: 14, right: 14 },
+                columnStyles: { 0: { cellWidth: 178 } }
+            });
+            
+            currentY = doc.autoTable.previous.finalY + 15; // Pindah ke bawah kotak catatan
+
+            // 5. TANDA TANGAN GURU
+            // Asumsi lokasi tanda tangan di sisi kanan
+            const ttdX = 140; 
+            const ttdY = currentY;
+
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Ngantru, ${new Date().toLocaleDateString('id-ID')}`, ttdX, ttdY);
+            doc.text(GURU_KELAS.JABATAN, ttdX, ttdY + 5);
+
+            // Nama Guru dan NIP (tanpa garis titik-titik)
+            doc.setFont('helvetica', 'bold');
+            doc.text(GURU_KELAS.NAMA, ttdX, ttdY + 25); 
+            doc.setFont('helvetica', 'normal');
+            doc.text(`NIP. ${GURU_KELAS.NIP}`, ttdX, ttdY + 30); 
+            
+
+            // 6. Download File
+            const filename = `Laporan_Nilai_${studentName.replace(/\s/g, '_')}_${periodId}.pdf`;
+            doc.save(filename);
+        }
+        
+        // Fungsi untuk mengisi dropdown siswa secara dinamis
+        function populateStudentSelector() {
+            const selector = document.getElementById('student-selector');
+            selector.innerHTML = '<option value="" disabled selected>-- Pilih Siswa --</option>'; // Reset
+            
+            STUDENT_DATA.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.id;
+                option.textContent = student.name;
+                selector.appendChild(option);
+            });
+            
+            // Pilih siswa pertama sebagai default
+            if (STUDENT_DATA.length > 0) {
+                selector.value = STUDENT_DATA[0].id;
+                renderGrades(STUDENT_DATA[0].id);
+            } else {
+                // Tampilkan pesan jika tidak ada data siswa
+                document.getElementById('student-name-header').innerHTML = `<i data-lucide="info" class="w-6 h-6 mr-2 text-red-500"></i> Tidak Ada Data Siswa Ditemukan`;
+                document.getElementById('grades-table-body').innerHTML = `<tr><td colspan="5" class="text-center p-4 text-gray-500">Silakan tambahkan data siswa ke dalam STUDENT_DATA di kode.</td></tr>`;
+                document.getElementById('average-grade').textContent = 'N/A';
+                document.getElementById('student-notes').textContent = 'Tidak ada catatan yang tersedia.';
+            }
+        }
+
+
+        // Event Listener Utama
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            document.getElementById('current-year').textContent = new Date().getFullYear();
+
+            // PENTING: Isi dropdown dengan data siswa yang tersedia
+            populateStudentSelector();
+
+            const studentSelector = document.getElementById('student-selector');
+            const periodSelector = document.getElementById('period-selector');
+            // GANTI: Menggunakan ID tombol PDF
+            const downloadButton = document.getElementById('download-pdf-button'); 
+            const modal = document.getElementById('detailed-input-modal');
+            
+            // Event listener for student change
+            studentSelector.addEventListener('change', (event) => {
+                renderGrades(event.target.value);
+            });
+            
+            // NEW: Event listener for period change
+            periodSelector.addEventListener('change', (event) => {
+                // Render ulang nilai dengan siswa yang sama, tetapi periode yang baru
+                const selectedStudentId = studentSelector.value;
+                if (selectedStudentId) {
+                    renderGrades(selectedStudentId);
+                }
+            });
+
+            // GANTI: Event listener untuk tombol Unduh PDF
+            downloadButton.addEventListener('click', exportToPDF);
+
+            // Event listener untuk tombol Simpan di modal
+            document.getElementById('save-daily-scores-button').addEventListener('click', saveDailyScores);
+            
+            // Event listener untuk tombol Tutup di modal
+            document.getElementById('close-modal-button').addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+
+            // Event listener untuk menutup modal saat mengklik overlay
+            modal.addEventListener('click', (e) => {
+                if (e.target.classList.contains('modal-overlay')) {
+                    modal.style.display = 'none';
+                }
+            });
+
+
+            // Logika untuk menu mobile (tetap dipertahankan)
+            const menuButton = document.getElementById('menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+
+            menuButton.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+                const lucideIcon = menuButton.querySelector('[data-lucide]');
+                
+                if (mobileMenu.classList.contains('hidden')) {
+                    lucideIcon.setAttribute('data-lucide', 'menu');
+                } else {
+                    lucideIcon.setAttribute('data-lucide', 'x');
+                }
+                lucide.createIcons();
+            });
+        });
+    </script>
+</body>
+</html>
