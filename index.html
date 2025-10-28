@@ -41,7 +41,7 @@
                         behavior="scroll" 
                         direction="left" 
                         scrollamount="5">
-            ⚠️ PERINGATAN KEAMANAN: Pendekatan ini mengekspos kata sandi di browser. TIDAK AMAN untuk aplikasi nyata. Sheet harus dipublikasikan sebagai CSV. ⚠️
+            Gunakan nama dan kata sandi yang sama saat mendaftar
         </marquee>
 
         <!-- Kotak Pesan Dinamis (akan diisi oleh JS) -->
@@ -55,7 +55,7 @@
             <!-- Bidang Nama Lengkap/ID Unik -->
             <div>
                 <label for="id_input" class="block text-sm font-medium text-gray-700 mb-1">
-                    Nama Pengguna/ID (Sesuai Kolom Sheet)
+                    Nama Pengguna/ID Unik
                 </label>
                 <input id="id_input" name="id_input" type="text" autocomplete="username" required
                         class="appearance-none relative block w-full px-4 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 sm:text-sm"
@@ -65,7 +65,7 @@
             <!-- Bidang Kata Sandi -->
             <div>
                 <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
-                    Kata Sandi
+                    Kata Sandi (Peka Huruf Besar/Kecil!)
                 </label>
                 <input id="password" name="password" type="password" autocomplete="current-password" required
                         class="appearance-none relative block w-full px-4 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 sm:text-sm"
@@ -205,8 +205,8 @@
                     const row = {};
                     
                     // 4. Memetakan nilai menggunakan mapping indeks yang sudah dibuat
-                    row.id = values[columnMapping.id].toLowerCase();
-                    row.password = values[columnMapping.password];
+                    row.id = values[columnMapping.id].toLowerCase(); // ID/Username diubah menjadi lowercase
+                    row.password = values[columnMapping.password].trim(); // PENTING: Kata Sandi harus sama persis (case-sensitive) dan menghilangkan spasi ekstra di Sheet
                     // Jika kolom peran kosong di sheet, defaultkan ke 'siswa'
                     row.role = values[columnMapping.role] ? values[columnMapping.role].toLowerCase() : 'siswa'; 
                     
@@ -245,12 +245,12 @@
                 loadingIndicator.classList.add('hidden');
                 // Tampilkan formulir hanya jika data berhasil dimuat (walaupun mungkin kosong)
                 if (USERS_DATA.length > 0) {
-                     loginForm.classList.remove('hidden');
+                    loginForm.classList.remove('hidden');
                 } else {
-                     // Biarkan loading/error message terlihat jika gagal
-                     document.getElementById('loginCard').classList.remove('hover:scale-[1.01]');
+                    // Biarkan loading/error message terlihat jika gagal
+                    document.getElementById('loginCard').classList.remove('hover:scale-[1.01]');
                 }
-               
+                
             }
         }
         
@@ -305,12 +305,12 @@
         async function handleFormSubmit(event) {
             event.preventDefault(); 
             const rawId = nameOrIdInput.value.trim().toLowerCase();
-            const password = passwordInput.value;
+            const password = passwordInput.value.trim(); // Menggunakan .trim()
             const selectedRole = getSelectedRole();
 
             if (USERS_DATA.length === 0) {
-                 displayMessage('error', 'Data pengguna belum dimuat atau kosong. Coba muat ulang halaman.');
-                 return;
+                displayMessage('error', 'Data pengguna belum dimuat atau kosong. Coba muat ulang halaman.');
+                return;
             }
 
             // Validasi wajib diisi
@@ -331,9 +331,9 @@
                     return;
                 }
 
-                // Verifikasi Kata Sandi
+                // Verifikasi Kata Sandi - TETAP CASE-SENSITIVE
                 if (user.password !== password) {
-                    displayMessage('error', 'Kata Sandi salah. Silakan coba lagi.');
+                    displayMessage('error', 'Kata Sandi salah. Pastikan huruf besar/kecil (case) sandi sama persis dengan di Sheet.');
                     return;
                 }
 
