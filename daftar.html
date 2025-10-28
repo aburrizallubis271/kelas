@@ -36,12 +36,12 @@
             </p>
         </div>
         
-        <!-- Gambar Logo/Placeholder -->
+        <!-- Gambar Logo Sekolah -->
         <div class="flex justify-center my-4">
-            <img src="7f8d8e73-0142-4398-a07c-d3c93df0c044.jpg" 
-                 alt="Logo Aplikasi" 
+            <img src="1.png" 
+                 alt="Logo Sekolah" 
                  class="h-20 w-auto rounded-lg shadow-md border border-indigo-200 object-cover"
-                 onerror="this.onerror=null; this.src='https://placehold.co/80x80/6366f1/ffffff?text=Logo+Form';">
+                 onerror="this.onerror=null; this.src='https://placehold.co/80x80/6366f1/ffffff?text=Logo+Sekolah';">
         </div>
         
         <!-- Tulisan Berjalan (Marquee) -->
@@ -49,7 +49,7 @@
                  behavior="scroll" 
                  direction="left" 
                  scrollamount="5">
-            ⚠️ Gunakan kata sandi yang berbeda dengan alamat email Anda. ⚠️
+            ⚠️ PIN harus minimal 6 angka. Jangan gunakan tanggal lahir atau PIN yang mudah ditebak. ⚠️
         </marquee>
 
         <!-- Kotak Pesan Dinamis (akan diisi oleh JS) -->
@@ -70,14 +70,17 @@
                         placeholder="Masukkan Nama Lengkap Anda (cth: Aburrizal)">
             </div>
 
-            <!-- Bidang Kata Sandi. Nama: 'password' -->
+            <!-- Bidang PIN. Nama: 'password' (tetap) -->
             <div>
                 <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
-                    Kata Sandi (wajib angka)
+                    PIN (Personal Identification Number)
                 </label>
                 <input id="password" name="password" type="password" required
+                        minlength="6" 
+                        inputmode="numeric" 
+                        pattern="[0-9]{6,}"
                         class="appearance-none relative block w-full px-4 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 sm:text-sm"
-                        placeholder="Minimal 6 karakter">
+                        placeholder="Minimal 6 angka">
             </div>
 
             <!-- Pilihan Peran. Nama: 'role' -->
@@ -116,7 +119,7 @@
         <div class="text-center text-sm">
             <p class="text-gray-600">
                 Selesai mendaftar?
-                <a href="index.html" id="index" class="font-medium text-indigo-600 hover:text-indigo-500 transition duration-150">
+                <a href="index.html" id="index.html" class="font-medium text-indigo-600 hover:text-indigo-500 transition duration-150">
                     Kembali ke halaman login
                 </a>
             </p>
@@ -125,13 +128,13 @@
 
     <script>
         // --- KONFIGURASI PENTING ---
-        // URL WEB APP TELAH DIPERBARUI DENGAN URL LENGKAP YANG ANDA BERIKAN.
+        // Pastikan URL Web App Anda sudah benar.
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxu3WDknoHCs4M5dIpkquIW8Oag-LdfAHgC34Zo5jMx6dI_-br4zFlhRaDTCzxKN27oHQ/exec";
 
         // Elemen UI
         const registrationForm = document.getElementById('registrationForm');
         const submitButton = document.getElementById('submitButton');
-        const returnToLoginLink = document.getElementById('returnToLogin');
+        const returnToLoginLink = document.getElementById('returnToLoginLink'); // Mengubah ID untuk konsistensi
         
         // Helper function untuk penundaan
         const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -227,12 +230,12 @@
                 
                 // Asumsikan Apps Script mengembalikan teks sukses
                 if (resultText.includes("success") || resultText.includes("Data Berhasil Disimpan")) {
-                     displayMessage('success', 'Pendaftaran Berhasil! Data (termasuk nama dan kata sandi) sudah disimpan di Spreadsheet.');
-                     // Kosongkan formulir setelah sukses
-                     registrationForm.reset();
+                    displayMessage('success', 'Pendaftaran Berhasil! Data (termasuk nama dan PIN) sudah disimpan di Spreadsheet.');
+                    // Kosongkan formulir setelah sukses
+                    registrationForm.reset();
                 } else {
-                     displayMessage('success', 'Data terkirim, tapi respons server tidak terduga. Cek Spreadsheet Anda!');
-                     console.log("Server response:", resultText);
+                    displayMessage('success', 'Data terkirim, tapi respons server tidak terduga. Cek Spreadsheet Anda!');
+                    console.log("Server response:", resultText);
                 }
 
             } catch (error) {
@@ -260,7 +263,6 @@
         console.warn("--------------------------");
 
     </script>
-   
+    
 </body>
 </html>
-

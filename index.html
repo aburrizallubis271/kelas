@@ -62,14 +62,15 @@
                         placeholder="Masukkan ID Anda (cth: budi)">
             </div>
 
-            <!-- Bidang Kata Sandi -->
+            <!-- Bidang PIN (Hanya Angka) -->
             <div>
                 <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
-                    Kata Sandi (Peka Huruf Besar/Kecil!)
+                    PIN (Hanya Angka)
                 </label>
-                <input id="password" name="password" type="password" autocomplete="current-password" required
+                <!-- Type tel dan pattern="\d*" membatasi input ke angka dan memunculkan keyboard numerik di HP -->
+                <input id="password" name="password" type="tel" pattern="\d*" autocomplete="off" required
                         class="appearance-none relative block w-full px-4 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 sm:text-sm"
-                        placeholder="Masukkan Kata Sandi">
+                        placeholder="Masukkan PIN Angka">
             </div>
 
             <!-- Pilihan Peran -->
@@ -92,7 +93,7 @@
             <div class="flex items-center justify-between">
                 <div class="text-sm">
                     <a href="#" class="font-medium text-indigo-600 hover:text-indigo-500 transition duration-150">
-                        Lupa Kata Sandi?
+                        Lupa PIN?
                     </a>
                 </div>
             </div>
@@ -143,7 +144,8 @@
         const SHEET_URL = `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}`;
 
         let USERS_DATA = []; // Akan diisi dengan data dari Sheet
-        const MIN_PASSWORD_LENGTH = 6;
+        // PIN minimum diubah menjadi 4 karakter
+        const MIN_PIN_LENGTH = 4;
         
         // Elemen UI
         const loginForm = document.getElementById('loginForm');
@@ -154,24 +156,22 @@
 
         /**
          * Mengurai data CSV menjadi array of objects.
-         * Asumsi: Baris pertama adalah header (id, password, role)
          */
         function parseCSV(csvText) {
             const lines = csvText.trim().split('\n');
             if (lines.length === 0) return [];
             
             // 1. Membersihkan dan mengambil header
-            // Semua header sheet akan diubah menjadi lowercase dan dihilangkan tanda kutipnya
             const sheetHeaders = lines[0].split(',').map(header => header.trim().toLowerCase().replace(/['"]+/g, ''));
             
             const requiredKeys = ['id', 'password', 'role'];
-            const columnMapping = {}; // { internalKey: sheetIndex }
+            const columnMapping = {}; 
             let foundRequiredKeys = 0;
 
-            // Mapping dari sheet header yang mungkin (termasuk bahasa Indonesia dan typo) ke kunci internal yang diperlukan
             const HEADER_MAP = {
                 id: ['id', 'nama', 'pengguna', 'username', 'user', 'nama lengkap'],
-                password: ['password', 'sandi', 'pasword'], // 'pasword' disertakan untuk mengatasi potensi typo
+                // Tetap menggunakan 'password' secara internal karena kolom di Sheet mungkin bernama Password/Sandi
+                password: ['password', 'sandi', 'pasword', 'pin'], 
                 role: ['role', 'peran', 'jenis login'],
             };
             
@@ -179,7 +179,6 @@
             requiredKeys.forEach(internalKey => {
                 const possibleSheetNames = HEADER_MAP[internalKey];
                 
-                // Cari sheet header mana yang mengandung salah satu kata kunci yang mungkin
                 const sheetIndex = sheetHeaders.findIndex(sheetHeader => 
                     possibleSheetNames.some(possibleName => sheetHeader.includes(possibleName))
                 );
@@ -193,7 +192,6 @@
             // 3. Validasi apakah semua kunci internal ditemukan
             if (foundRequiredKeys < requiredKeys.length) {
                 console.error("Kesalahan Header CSV. Tidak semua kolom yang diperlukan ('id', 'password', 'role') dapat ditemukan atau dipetakan. Header Sheet Ditemukan:", sheetHeaders);
-                // Jika validasi gagal, kembalikan array kosong
                 return [];
             }
             
@@ -204,13 +202,17 @@
                 if (values.length === sheetHeaders.length) {
                     const row = {};
                     
-                    // 4. Memetakan nilai menggunakan mapping indeks yang sudah dibuat
-                    row.id = values[columnMapping.id].toLowerCase(); // ID/Username diubah menjadi lowercase
-                    row.password = values[columnMapping.password].trim(); // PENTING: Kata Sandi harus sama persis (case-sensitive) dan menghilangkan spasi ekstra di Sheet
-                    // Jika kolom peran kosong di sheet, defaultkan ke 'siswa'
+                    // ID/Username diubah menjadi lowercase
+                    row.id = values[columnMapping.id].toLowerCase(); 
+                    // PIN/Password dari Sheet. DITRIM dan TIDAK diubah case-nya.
+                    row.password = values[columnMapping.password].trim(); 
+                    
                     row.role = values[columnMapping.role] ? values[columnMapping.role].toLowerCase() : 'siswa'; 
                     
-                    data.push(row);
+                    // Filter baris yang mungkin kosong 
+                    if (row.id && row.password) {
+                         data.push(row);
+                    }
                 }
             }
             return data;
@@ -233,24 +235,22 @@
                 USERS_DATA = parseCSV(csvText);
 
                 if (USERS_DATA.length === 0) {
-                    throw new Error("Data pengguna kosong atau header salah.");
+                    displayMessage('error', 'Data pengguna kosong. Pastikan Sheet sudah di "Publish to web" dan tidak ada baris yang benar-benar kosong.');
+                    return;
                 }
                 
                 displayMessage('success', `Data ${USERS_DATA.length} pengguna berhasil dimuat dari Google Sheet!`);
                 
             } catch (error) {
                 console.error("Gagal memuat data dari Sheet:", error);
-                displayMessage('error', `Gagal memuat data pengguna. Periksa koneksi internet atau status 'Publish to web' Sheet Anda. Detail: ${error.message}`);
+                displayMessage('error', `Gagal memuat data pengguna. Detail: ${error.message}`);
             } finally {
                 loadingIndicator.classList.add('hidden');
-                // Tampilkan formulir hanya jika data berhasil dimuat (walaupun mungkin kosong)
                 if (USERS_DATA.length > 0) {
                     loginForm.classList.remove('hidden');
                 } else {
-                    // Biarkan loading/error message terlihat jika gagal
                     document.getElementById('loginCard').classList.remove('hover:scale-[1.01]');
                 }
-                
             }
         }
         
@@ -282,7 +282,6 @@
                 box.classList.add('bg-red-100', 'text-red-800');
             }
 
-            // Hilangkan pesan setelah 5 detik
             setTimeout(() => {
                 box.classList.remove('opacity-100');
                 box.classList.add('opacity-0');
@@ -304,18 +303,25 @@
          */
         async function handleFormSubmit(event) {
             event.preventDefault(); 
+            // ID input diubah menjadi huruf kecil (case-insensitive)
             const rawId = nameOrIdInput.value.trim().toLowerCase();
-            const password = passwordInput.value.trim(); // Menggunakan .trim()
+            // PIN dari input (seharusnya hanya angka, di-trim)
+            const password = passwordInput.value.trim(); 
             const selectedRole = getSelectedRole();
 
             if (USERS_DATA.length === 0) {
                 displayMessage('error', 'Data pengguna belum dimuat atau kosong. Coba muat ulang halaman.');
                 return;
             }
+            
+            // Validasi format PIN: harus angka dan panjang minimum
+            if (/[^0-9]/.test(password)) {
+                 displayMessage('error', 'PIN hanya boleh berisi angka.');
+                 return;
+            }
 
-            // Validasi wajib diisi
-            if (!rawId || password.length < MIN_PASSWORD_LENGTH) { 
-                displayMessage('error', `ID dan Kata Sandi wajib diisi. Kata sandi minimal ${MIN_PASSWORD_LENGTH} karakter.`);
+            if (!rawId || password.length < MIN_PIN_LENGTH) { 
+                displayMessage('error', `ID dan PIN wajib diisi. PIN minimal ${MIN_PIN_LENGTH} digit.`);
                 return;
             }
 
@@ -323,24 +329,34 @@
             loginButton.textContent = 'Memverifikasi...';
             
             try {
-                // Cari data pengguna di array yang diambil dari Sheet
                 const user = USERS_DATA.find(u => u.id === rawId);
+
+                // --- DEBUGGING LOG ---
+                console.log('----------------------------------------------------');
+                console.log('Langkah Debugging PIN:');
+                console.log(`ID Ditemukan? ${!!user ? 'YA' : 'TIDAK'}`);
+                console.log(`PIN Input (dari kolom): "${password}"`);
+                if (user) {
+                    console.log(`PIN Sheet (dari data): "${user.password}"`);
+                    console.log(`Perbandingan (Sheet === Input): ${user.password === password}`);
+                }
+                console.log('----------------------------------------------------');
+                // ---------------------------
 
                 if (!user) {
                     displayMessage('error', 'ID Pengguna tidak ditemukan.');
                     return;
                 }
 
-                // Verifikasi Kata Sandi - TETAP CASE-SENSITIVE
+                // Verifikasi PIN - Tetap Case/Digit Sensitive (penting untuk PIN)
                 if (user.password !== password) {
-                    displayMessage('error', 'Kata Sandi salah. Pastikan huruf besar/kecil (case) sandi sama persis dengan di Sheet.');
+                    displayMessage('error', 'PIN salah. Pastikan PIN yang Anda masukkan sama persis dengan yang tersimpan di Sheet. Lihat Konsol (F12) untuk detail perbandingan.');
                     return;
                 }
 
                 // Verifikasi Peran
                 if (user.role !== selectedRole) {
                     displayMessage('error', `Login berhasil, tetapi peran Anda yang tersimpan di Sheet adalah ${user.role.toUpperCase()}. Silakan pilih peran yang benar.`);
-                    // Biarkan login berhasil, tapi beri pesan peran yang benar
                     redirectToDashboard(user.id, user.role); 
                     return;
                 }
